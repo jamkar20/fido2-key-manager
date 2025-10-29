@@ -49,9 +49,9 @@ class Fido2Manager:
     def set_pin(self, new_pin: str, current_pin: Optional[str] = None) -> bool:
         pin = ClientPin(self.selected[1])
         if current_pin:
-            pin.change_pin(current_pin.encode(), new_pin.encode())
+            pin.change_pin(current_pin, new_pin)
         else:
-            pin.set_pin(new_pin.encode())
+            pin.set_pin(new_pin)
         return True
 
     def change_pin(self, current_pin: str, new_pin: str) -> bool:
@@ -63,3 +63,13 @@ class Fido2Manager:
             ctap.reset()
             return True
         raise RuntimeError("Reset not supported")
+
+    def has_pin(self) -> bool:
+        """Check if the selected key has a PIN set."""
+        if not self.selected:
+            raise DeviceNotSelectedError()
+
+        _, ctap = self.selected
+        info = ctap.get_info()
+        options = getattr(info, "options", {})
+        return options.get("clientPin", False)

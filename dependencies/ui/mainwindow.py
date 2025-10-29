@@ -1,8 +1,8 @@
-from PyQt5 import QtWidgets, QtCore
 from PyQt5.QtWidgets import (
     QMainWindow, QListWidget, QTextEdit, QPushButton, QLabel,
-    QVBoxLayout, QHBoxLayout, QWidget, QMessageBox, QInputDialog
+    QVBoxLayout, QHBoxLayout, QWidget, QMessageBox, QInputDialog, QLineEdit
 )
+from .icon import LogoIcon
 
 
 class MainWindow(QMainWindow):
@@ -10,6 +10,7 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.manager = manager
         self.setWindowTitle("FIDO2 Key Manager")
+        self.setWindowIcon(LogoIcon())
         self.resize(800, 600)
 
         self.device_list = QListWidget()
@@ -17,7 +18,6 @@ class MainWindow(QMainWindow):
         self.info_view = QTextEdit()
         self.info_view.setReadOnly(True)
         self.set_pin_btn = QPushButton("Set PIN")
-        self.change_pin_btn = QPushButton("Change PIN")
         self.reset_btn = QPushButton("Reset")
         self.exit_btn = QPushButton("Exit")
 
@@ -32,7 +32,6 @@ class MainWindow(QMainWindow):
 
         pin_row = QHBoxLayout()
         pin_row.addWidget(self.set_pin_btn)
-        pin_row.addWidget(self.change_pin_btn)
         right.addLayout(pin_row)
 
         bottom_row = QHBoxLayout()
@@ -56,7 +55,6 @@ class MainWindow(QMainWindow):
         self.refresh_btn.clicked.connect(self.on_refresh)
         self.device_list.currentRowChanged.connect(self.on_select_device)
         self.set_pin_btn.clicked.connect(self.on_set_pin)
-        self.change_pin_btn.clicked.connect(self.on_change_pin)
         self.reset_btn.clicked.connect(self.on_reset)
         self.exit_btn.clicked.connect(self.close)
 
@@ -86,28 +84,38 @@ class MainWindow(QMainWindow):
             info = self.manager.select_device(idx)
             pretty = f"Path: {info['path']}\nVersions: {info['versions']}\nAAGUID: {info['aaguid']}\nExtensions: {info['extensions']}\nOptions: {info['options']}"
             self.info_view.setPlainText(pretty)
+            if self.manager.has_pin():
+                self.set_pin_btn.setText("Change PIN")
+            else:
+                self.set_pin_btn.setText("Set PIN")
         except Exception as e:
             self.show_error("Select device failed", str(e))
 
     def on_set_pin(self):
-        new_pin, ok = QInputDialog.getText(self, "Set PIN", "New PIN:")
-        if not ok or not new_pin:
-            return
-        cur, ok2 = QInputDialog.getText(
-            self, "Current PIN (optional)", "Current PIN:")
-        if not ok2:
-            return
-        try:
-            self.manager.set_pin(new_pin, cur or None)
-            self.show_info("Success", "PIN set/changed successfully.")
-        except Exception as e:
-            self.show_error("Set PIN failed", str(e))
+        if self.manager.has_pin():
+            self.on_change_pin()
+        else:
+            new_pin, ok = QInputDialog.getText(
+                self, "Set PIN", "New PIN:", echo=QLineEdit.EchoMode.Password)
+            if not ok or not new_pin:
+                return
+            cur, ok2 = QInputDialog.getText(
+                self, "Confirm PIN", "Confirm PIN:")
+            if not ok2:
+                return
+            try:
+                self.manager.set_pin(new_pin, cur or None)
+                self.show_info("Success", "PIN set/changed successfully.")
+            except Exception as e:
+                self.show_error("Set PIN failed", str(e))
 
     def on_change_pin(self):
-        cur, ok = QInputDialog.getText(self, "Change PIN", "Current PIN:")
+        cur, ok = QInputDialog.getText(
+            self, "Change PIN", "Current PIN:", echo=QLineEdit.EchoMode.Password)
         if not ok or not cur:
             return
-        new_pin, ok2 = QInputDialog.getText(self, "Change PIN", "New PIN:")
+        new_pin, ok2 = QInputDialog.getText(
+            self, "Change PIN", "New PIN:", echo=QLineEdit.EchoMode.Password)
         if not ok2 or not new_pin:
             return
         try:
