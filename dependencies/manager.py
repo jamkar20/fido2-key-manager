@@ -60,7 +60,7 @@ class Fido2Manager:
     def reset(self) -> bool:
         _, ctap = self.selected
         if hasattr(ctap, "reset"):
-            ctap.reset()
+            ctap.reset(event=None, on_keepalive=on_keepalive)
             return True
         raise RuntimeError("Reset not supported")
 
