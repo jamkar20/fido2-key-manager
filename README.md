@@ -31,3 +31,11 @@ pip install -r requirements.txt
 
 # Run the application
 python main.py
+
+# Build Binary
+
+pyinstaller --onefile --noconsole --hidden-import "fido2" --name Fido2KeyManager --icon ./fido.ico --uac-admin --add-data "dependencies\ui\resources;resources" --hidden-import "PyQt5.QtCore" --hidden-import "PyQt5.QtGui" --hidden-import "PyQt5.QtWidgets"  main.py
+
+```
+
+### Method 2: Use Prebuilt Binaries
