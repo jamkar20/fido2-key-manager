@@ -184,7 +184,7 @@ class MainWindow(QMainWindow):
 
     def on_select_device(self, idx: int | QListWidgetItem):
         try:
-            if(isinstance(idx,QListWidgetItem)):
+            if (isinstance(idx, QListWidgetItem)):
                 idx = self.device_list.currentRow()
 
             if idx < 0 or idx >= len(self.devices):
@@ -208,10 +208,16 @@ class MainWindow(QMainWindow):
             self.show_error("Select device failed", str(e))
 
     def on_set_pin(self):
-        if self.manager.has_pin():
-            self.on_change_pin()
-        else:
-            self.on_set_new_pin()
+        if self.device_list.currentRow() < 0:
+            self.show_error("No Device", "Please select a device first.")
+            return
+        try:
+            if self.manager.has_pin():
+                self.on_change_pin()
+            else:
+                self.on_set_new_pin()
+        except Exception as err:
+            self.show_error("Error", str(err))
 
     def on_set_new_pin(self):
         new_pin, ok = QInputDialog.getText(
@@ -283,22 +289,26 @@ class MainWindow(QMainWindow):
             elapsed = time.time() - self.reset_start_time
             if elapsed > 10:
                 self.reset_pending = False
-                self.show_error("Reset Timeout", "Device was not disconnected within 10 seconds.")
+                self.show_error(
+                    "Reset Timeout", "Device was not disconnected within 10 seconds.")
                 self.on_refresh()
                 self.setEnabled(True)
                 return
             current_devices = self.manager.discover()
             if any(dev.get('path') == self.last_selected_path for dev in current_devices):
-                self.info_view.setPlainText("Waiting for device to be disconnected...")
+                self.info_view.setPlainText(
+                    "Waiting for device to be disconnected...")
                 QTimer.singleShot(1000, self.check_disconnect_for_reset)
                 return
             else:
                 self.waiting_for_disconnect = False
-                self.info_view.setPlainText("Device disconnected. Please RECONNECT within 10 seconds...")
+                self.info_view.setPlainText(
+                    "Device disconnected. Please RECONNECT within 10 seconds...")
                 self.reset_start_time = time.time()  # شروع شمارش دوباره برای reconnect
                 QTimer.singleShot(1000, self.check_reconnect_for_reset)
         except Exception as e:
-            self.info_view.setPlainText(f"Error while checking disconnect: {str(e)}")
+            self.info_view.setPlainText(
+                f"Error while checking disconnect: {str(e)}")
             QTimer.singleShot(1000, self.check_disconnect_for_reset)
 
     def check_reconnect_for_reset(self):
@@ -309,7 +319,8 @@ class MainWindow(QMainWindow):
         elapsed = time.time() - self.reset_start_time
         if elapsed > 10:
             self.reset_pending = False
-            self.show_error("Reset Timeout", "Device was not reconnected within 10 seconds.")
+            self.show_error("Reset Timeout",
+                            "Device was not reconnected within 10 seconds.")
             self.on_refresh()
             self.setEnabled(True)
             return
@@ -318,7 +329,8 @@ class MainWindow(QMainWindow):
             current_devices = self.manager.discover()
             if len(current_devices) == 0:
                 remaining = int(10 - elapsed)
-                self.info_view.setPlainText(f"Waiting for reconnection... ({remaining}s left)")
+                self.info_view.setPlainText(
+                    f"Waiting for reconnection... ({remaining}s left)")
                 QTimer.singleShot(1000, self.check_reconnect_for_reset)
                 return
 
