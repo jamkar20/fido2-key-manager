@@ -1,7 +1,7 @@
 import sys
 import os
 from PyQt5.QtGui import QIcon
-
+from PyQt5.QtSvg import QSvgWidget
 
 
 icon_path = ''
@@ -13,7 +13,17 @@ else:
     base_path = os.path.dirname(os.path.abspath(__file__))
     icon_path = os.path.join(base_path, "./resources")
 
+
 class LogoIcon(QIcon):
     def __init__(self):
         super().__init__(os.path.join(icon_path, "fido.png"))
 
+
+class FingerIcon(QIcon):
+    def __init__(self):
+        super().__init__(os.path.join(icon_path, "fingerprint-scan.svg"))
+
+
+class FingerprintWidget(QSvgWidget):
+    def __init__(self):
+        super().__init__(os.path.join(icon_path, "fingerprint-scan.svg"))

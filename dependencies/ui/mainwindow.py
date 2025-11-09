@@ -5,6 +5,8 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtCore import QTimer, QThread, pyqtSignal
 from .icon import LogoIcon
 from .theme import ThemeManager
+from ..manager import Fido2Manager
+from .fingerprints import FingerprintsWindow
 import time
 
 
@@ -32,7 +34,7 @@ class DeviceDiscoverer(QThread):
 
 
 class MainWindow(QMainWindow):
-    def __init__(self, manager, theme: ThemeManager):
+    def __init__(self, manager: Fido2Manager, theme: ThemeManager):
         super().__init__()
         self.manager = manager
         self.theme = theme
@@ -52,6 +54,8 @@ class MainWindow(QMainWindow):
         self.set_pin_btn = QPushButton("Set PIN")
         self.reset_btn = QPushButton("Reset")
         self.exit_btn = QPushButton("Exit")
+        self.finger_btn = QPushButton("Fingerprints Management")
+        self.finger_btn.setMinimumWidth(50)
 
         left = QVBoxLayout()
         left.addWidget(QLabel("Connected Devices:"))
@@ -68,6 +72,7 @@ class MainWindow(QMainWindow):
 
         bottom_row = QHBoxLayout()
         bottom_row.addWidget(self.reset_btn)
+        bottom_row.addWidget(self.finger_btn)
         bottom_row.addStretch()
         bottom_row.addWidget(self.exit_btn)
         right.addLayout(bottom_row)
@@ -92,7 +97,7 @@ class MainWindow(QMainWindow):
         self.set_pin_btn.clicked.connect(self.on_set_pin)
         self.reset_btn.clicked.connect(self.on_reset)
         self.exit_btn.clicked.connect(self.on_exit)
-
+        self.finger_btn.clicked.connect(self.on_fingerprints)
 
         self.on_refresh()
 
@@ -304,7 +309,7 @@ class MainWindow(QMainWindow):
                 self.waiting_for_disconnect = False
                 self.info_view.setPlainText(
                     "Device disconnected. Please RECONNECT within 10 seconds...")
-                self.reset_start_time = time.time()  # شروع شمارش دوباره برای reconnect
+                self.reset_start_time = time.time()
                 QTimer.singleShot(1000, self.check_reconnect_for_reset)
         except Exception as e:
             self.info_view.setPlainText(
@@ -361,3 +366,18 @@ class MainWindow(QMainWindow):
                 f"Error during reset check: {str(e)}\nRetrying... ({remaining}s left)"
             )
             QTimer.singleShot(1000, self.check_reconnect_for_reset)
+
+    def on_fingerprints(self):
+        try:
+            if self.device_list.currentRow() < 0:
+                self.show_error("No Device", "Please select a device first.")
+                return
+            if self.manager.can_add_fingerprint():
+                pin, _ = QInputDialog.getText(
+                    self, "Enter PIN", "PIN:", QLineEdit.Password)
+                self.manager.list_fingerprints(pin)
+                self.fingerprint_window = FingerprintsWindow(
+                    self.manager, pin, self)
+                self.fingerprint_window.exec_()
+        except Exception as err:
+            self.show_error("Error", str(err))

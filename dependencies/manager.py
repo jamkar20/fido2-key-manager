@@ -1,7 +1,8 @@
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Callable
 from fido2.hid import CtapHidDevice
 from fido2.ctap2 import ClientPin
 from fido2.ctap2.base import Ctap2
+from fido2.ctap2.bio import BioEnrollment, FPBioEnrollment, CaptureError
 
 
 class DeviceNotSelectedError(Exception):
@@ -73,3 +74,66 @@ class Fido2Manager:
         info = ctap.get_info()
         options = getattr(info, "options", {})
         return options.get("clientPin", False)
+
+    def support_bio(self) -> bool:
+        """Check if the selected key support Biometric."""
+        _, ctap = self.selected
+        info = ctap.get_info()
+        return BioEnrollment.is_supported(info)
+
+    def can_add_fingerprint(self) -> bool:
+        if not self.support_bio():
+            raise RuntimeError('Device is not support biometric!')
+        _, ctap = self.selected
+        info = ctap.get_info()
+        if not info.options.get("clientPin"):
+            raise RuntimeError("PIN not set for the device!")
+        return True
+
+    def _get_bio(self, pin: str):
+        _, ctap = self.selected
+        client_pin = ClientPin(ctap)
+        pin_token = client_pin.get_pin_token(
+            pin, ClientPin.PERMISSION.BIO_ENROLL)
+        return FPBioEnrollment(ctap, client_pin.protocol, pin_token)
+
+    def cancel_enroll(self):
+        if self.enroller:
+            self.enroller.cancel()
+
+    def add_fingerprint(self, pin: str, on_touch: Optional[Callable[[str], Any]], on_save: Optional[Callable[[], str]], event=None):
+        if not callable(on_touch):
+            def _on_touch(s: str):
+                return
+            on_touch = _on_touch
+
+        bio = self._get_bio(pin)
+        self.enroller = bio.enroll()
+
+        template_id = None
+        on_touch("Press your fingerprint against the sensor now...")
+        while template_id is None:
+            try:
+                template_id = self.enroller.capture(event)
+                if self.enroller.remaining > 0:
+                    on_touch(str(self.enroller.remaining) +
+                             " more scans needed. touch sensor now ...")
+            except CaptureError as e:
+                raise e
+        self.enroller = None
+        f_name = "Fingerprint"
+        if callable(on_save):
+            f_name = on_save()
+        bio.set_name(template_id, f_name)
+
+    def list_fingerprints(self, pin: str):
+        bio = self._get_bio(pin)
+        return bio.enumerate_enrollments()
+
+    def remove_fingerprint(self, pin: str, template_id: bytes):
+        bio = self._get_bio(pin)
+        bio.remove_enrollment(template_id)
+
+    def rename_fingerprint(self, pin: str, template_id: bytes, new_name: str):
+        bio = self._get_bio(pin)
+        bio.set_name(template_id, new_name)
